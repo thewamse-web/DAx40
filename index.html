@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAX 40 Trading Hub</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #131722; color: #d1d4dc; margin: 0; padding: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; max-width: 1200px; margin: auto; }
+        .main-panel, .side-panel { background: #1e222d; padding: 20px; border-radius: 10px; border: 1px solid #363c4e; }
+        h2 { color: #2962ff; margin-top: 0; border-bottom: 1px solid #363c4e; padding-bottom: 10px; }
+        .calc-input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #363c4e; background: #2a2e39; color: white; }
+        .result-box { background: #2a2e39; padding: 15px; border-radius: 5px; margin-top: 10px; border-left: 4px solid #2962ff; }
+        .signal-text { font-weight: bold; color: #00ff88; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="grid">
+    <!-- VENSTRE SIDE: GRAF OG SIGNALER -->
+    <div class="main-panel">
+        <h2>DAX 40 Live Signal (15m)</h2>
+        <!-- Technical Analysis Widget -->
+        <div class="tradingview-widget-container" style="margin-bottom: 20px;">
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+            {
+              "interval": "15m",
+              "width": "100%",
+              "height": 400,
+              "symbol": "XETR:DAX",
+              "showIntervalTabs": true,
+              "displayMode": "multiple",
+              "locale": "da_DK",
+              "colorTheme": "dark"
+            }
+            </script>
+        </div>
+
+        <h2>DAX Chart (RSI, MACD, Volume)</h2>
+        <div id="tradingview_chart" style="height: 500px;"></div>
+    </div>
+
+    <!-- HØJRE SIDE: RISK MANAGEMENT & INFO -->
+    <div class="side-panel">
+        <h2>Risk Management</h2>
+        <p style="font-size: 0.85em;">Husk: Luk alle positioner senest <strong>kl. 16:55</strong>.</p>
+        
+        <label>Aktuel DAX Kurs:</label>
+        <input type="number" id="daxPrice" class="calc-input" placeholder="Indtast kurs (f.eks. 18500)" oninput="calculatePosition()">
+        
+        <div class="result-box">
+            <small>Position (v. 35.000 kr.):</small><br>
+            <strong id="posSize">0.00</strong> enheder
+        </div>
+
+        <div class="result-box" style="border-left-color: #ff9800;">
+            <small>Profit Mål (1%):</small><br>
+            <span id="targetPrice">0.00</span>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #363c4e; margin: 20px 0;">
+        <h3>Tjekliste</h3>
+        <ul style="font-size: 0.9em; padding-left: 20px;">
+            <li>RSI bekræfter?</li>
+            <li>MACD kryds?</li>
+            <li>Volume stiger?</li>
+            <li>Flyt til Break-even når i plus.</li>
+        </ul>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script type="text/javascript">
+    // Graf-opsætning
+    new TradingView.widget({
+        "autosize": true,
+        "symbol": "XETR:DAX",
+        "interval": "15",
+        "timezone": "Europe/Berlin",
+        "theme": "dark",
+        "style": "1",
+        "locale": "da_DK",
+        "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
+        "container_id": "tradingview_chart"
+    });
+
+    // Beregner til positioner
+    function calculatePosition() {
+        const price = document.getElementById('daxPrice').value;
+        const budget = 35000;
+        if (price > 0) {
+            const units = budget / (price * 7.46); // Omregnet fra DKK til EUR ca.
+            document.getElementById('posSize').innerText = units.toFixed(2);
+            document.getElementById('targetPrice').innerText = (price * 1.01).toFixed(2);
+        }
+    }
+</script>
+
+</body>
+</html>
