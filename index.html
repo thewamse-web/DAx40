@@ -1,490 +1,152 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="da">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DAX 40 Signal Scanner</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede8;
-    --text: #1a1a1a; --text2: #6b6b68; --text3: #9b9b98;
-    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
-    --green: #1D9E75; --green-bg: #EAF3DE; --green-text: #3B6D11; --green-border: #97C459;
-    --red: #D85A30; --red-bg: #FCEBEB; --red-text: #A32D2D; --red-border: #F09595;
-    --amber-bg: #FAEEDA; --amber-text: #854F0B; --amber-border: #EF9F27;
-    --blue: #185FA5; --radius: 8px; --radius-lg: 12px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
-      --text: #f0efea; --text2: #9b9b98; --text3: #6b6b68;
-      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
-      --green-bg: #0d2e1a; --green-text: #5DCAA5; --green-border: #1D9E75;
-      --red-bg: #2e1010; --red-text: #F09595; --red-border: #D85A30;
-      --amber-bg: #2e1e05; --amber-text: #FAC775; --amber-border: #BA7517;
-    }
-  }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
-  .topbar { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 10; flex-wrap: wrap; gap: 6px; }
-  .topbar-title { font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-  .topbar-right { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text2); }
-  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .container { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
-  .filter-row { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
-  .fbtn { font-size: 13px; padding: 6px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
-  .fbtn:hover { background: var(--bg2); color: var(--text); }
-  .fbtn.active-all { background: var(--bg2); color: var(--text); border-color: var(--border2); }
-  .fbtn.active-buy { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); }
-  .fbtn.active-sell { background: var(--red-bg); color: var(--red-text); border-color: var(--red-border); }
-  .sort-row { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
-  .sort-row select { font-size: 12px; padding: 4px 8px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); cursor: pointer; }
-  .refresh-btn { margin-left: auto; font-size: 12px; padding: 5px 12px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; }
-  .refresh-btn:hover { background: var(--bg2); color: var(--text); }
-  .countdown { font-size: 11px; color: var(--text3); }
-  .progress-bar { width: 100%; height: 3px; background: var(--bg3); border-radius: 2px; margin-bottom: 1rem; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width .3s; }
-  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: .75rem; cursor: pointer; transition: border-color .15s; }
-  .card:hover { border-color: var(--border2); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: .75rem; }
-  .card-name { font-size: 15px; font-weight: 500; color: var(--text); }
-  .card-ticker { font-size: 11px; color: var(--text2); margin-top: 2px; }
-  .score-ring { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px; }
-  .score-num { font-size: 24px; font-weight: 500; }
-  .score-lbl { font-size: 10px; color: var(--text2); }
-  .score-5,.score-4 { color: var(--green-text); }
-  .score-3 { color: #BA7517; }
-  .score-2,.score-1 { color: var(--red-text); }
-  .checks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: .6rem; }
-  .chk { display: flex; align-items: center; gap: 5px; font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 0.5px solid transparent; }
-  .chk-ok { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); }
-  .chk-warn { background: var(--amber-bg); color: var(--amber-text); border-color: var(--amber-border); }
-  .chk-bad { background: var(--red-bg); color: var(--red-text); border-color: var(--red-border); }
-  .card-nums { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
-  .cnum { background: var(--bg2); border-radius: var(--radius); padding: 6px 8px; }
-  .cnum-lbl { font-size: 10px; color: var(--text2); margin-bottom: 2px; }
-  .cnum-val { font-size: 13px; font-weight: 500; color: var(--text); }
-  .pos { color: var(--green); } .neg { color: var(--red); }
-  .desc-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: .75rem; }
-  .desc-ok { font-size: 11px; color: var(--green-text); line-height: 1.5; }
-  .empty { text-align: center; padding: 3rem; color: var(--text2); font-size: 14px; }
-  .loading-row { text-align: center; padding: 2rem; color: var(--text2); font-size: 13px; display: none; }
-  /* Detail */
-  .back-btn { font-size: 13px; color: var(--text2); cursor: pointer; margin-bottom: .75rem; display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 0; }
-  .back-btn:hover { color: var(--text); }
-  .dt-title { font-size: 18px; font-weight: 500; margin-bottom: 3px; }
-  .dt-sub { font-size: 12px; color: var(--text2); margin-bottom: .75rem; }
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(100px,1fr)); gap: 10px; margin-bottom: 1rem; }
-  .metric { background: var(--bg2); border-radius: var(--radius); padding: .6rem .9rem; }
-  .mlabel { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
-  .mval { font-size: 16px; font-weight: 500; }
-  .period-sel { display: flex; gap: 5px; margin-bottom: .75rem; }
-  .pbtn { font-size: 12px; padding: 4px 10px; border-radius: var(--radius); border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
-  .pbtn.active { background: var(--bg2); color: var(--text); border-color: var(--border2); }
-  .section-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
-  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 5px; font-size: 11px; color: var(--text2); }
-  .legend span { display: flex; align-items: center; gap: 4px; }
-  .lline { width: 14px; height: 2px; border-radius: 1px; }
-  .chart-wrap { position: relative; width: 100%; margin-bottom: 1.25rem; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: .5rem; }
-  .rsi-bar-bg { height: 7px; background: var(--bg2); border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
-  .rsi-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
-  .rsi-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-bottom: 6px; }
-  #detailView { display: none; }
-  .sector-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--bg2); color: var(--text2); border: 0.5px solid var(--border); margin-top: 3px; display: inline-block; }
-  .search-input { font-size: 13px; padding: 6px 12px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); width: 200px; }
-  .search-input:focus { outline: none; border-color: var(--blue); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAX 40 Eagle Eye Scanner (Finnhub Live)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #131722; color: #d1d4dc; margin: 0; padding: 10px; overflow: hidden; }
+        .layout { display: grid; grid-template-columns: 480px 1fr; gap: 10px; height: 98vh; }
+        .sidebar { background: #1e222d; border-radius: 8px; border: 1px solid #363c4e; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
+        .main-content { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+        .chart-container { flex-grow: 1; background: #1e222d; border-radius: 8px; border: 1px solid #363c4e; overflow: hidden; }
+        
+        .refresh-btn { background-color: #2962ff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; width: 100%; }
+        h3 { color: #2962ff; margin: 5px 0; font-size: 1.1em; text-align: center; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #363c4e; cursor: pointer; }
+        th { color: #b2b5be; position: sticky; top: 0; background: #1e222d; }
+        tr:hover { background-color: #2a2e39; }
+        .up { color: #00ff88; }
+        .down { color: #ff3333; }
+        .loading { text-align: center; padding: 20px; font-style: italic; color: #2962ff; }
+    </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-title">🇩🇪 DAX 40 Signal Scanner</div>
-  <div class="topbar-right">
-    <span class="live-dot"></span>
-    <span>Yahoo Finance (~15 min forsinkelse)</span>
-    <span class="countdown" id="countdown"></span>
-  </div>
-</div>
-
-<div class="container">
-
-  <div id="mainView">
-    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    <div class="filter-row">
-      <input class="search-input" type="text" id="searchInput" placeholder="Søg selskab..." oninput="renderCards()">
-      <button class="fbtn active-all" onclick="setFilter('all',this)">Alle</button>
-      <button class="fbtn" onclick="setFilter('buy',this)">▲ Køb</button>
-      <button class="fbtn" onclick="setFilter('sell',this)">▼ Sælg</button>
+<div class="layout">
+    <div class="sidebar">
+        <h3>DAX 40 Live Scanner</h3>
+        <button class="refresh-btn" onclick="updateAllData()">🔄 OPDATER LIVE DATA</button>
+        <div id="loadingStatus" class="loading" style="display:none;">Henter data fra Finnhub...</div>
+        
+        <table id="daxTable">
+            <thead>
+                <tr>
+                    <th>Aktie</th>
+                    <th>Pris</th>
+                    <th>%</th>
+                    <th>Volumen</th>
+                </tr>
+            </thead>
+            <tbody id="daxTableBody">
+                <!-- Data lander her -->
+            </tbody>
+        </table>
     </div>
-    <div class="sort-row">
-      <span>Sorter:</span>
-      <select id="sortBy" onchange="renderCards()">
-        <option value="score">Signalstyrke</option>
-        <option value="rsi">RSI</option>
-        <option value="macd">MACD hist</option>
-        <option value="vol">Volumen</option>
-        <option value="day">Dag %</option>
-      </select>
-      <span id="loadedCount" style="color:var(--text3)"></span>
-      <button class="refresh-btn" onclick="reloadAll()">↺ Opdater nu</button>
-    </div>
-    <div id="cardList"></div>
-    <div class="loading-row" id="loadingAll">Henter data...</div>
-  </div>
 
-  <div id="detailView">
-    <button class="back-btn" onclick="showMain()">← Tilbage til DAX 40</button>
-    <div class="dt-title" id="dtTitle"></div>
-    <div class="dt-sub" id="dtSub"></div>
-    <div class="checks" id="dtChecks" style="margin-bottom:.75rem"></div>
-    <div class="metrics" id="dtMetrics"></div>
-    <div class="period-sel">
-      <button class="pbtn active" onclick="setPeriod('3mo')">3M</button>
-      <button class="pbtn" onclick="setPeriod('6mo')">6M</button>
-      <button class="pbtn" onclick="setPeriod('1y')">1Å</button>
-      <button class="pbtn" onclick="setPeriod('2y')">2Å</button>
-    </div>
-    <div class="section-label">Kurs · MA20 · MA50</div>
-    <div class="legend">
-      <span><span class="lline" style="background:#185FA5"></span>Kurs</span>
-      <span><span class="lline" style="border-top:2px dashed #E24B4A;background:none"></span>MA20</span>
-      <span><span class="lline" style="border-top:2px dashed #1D9E75;background:none"></span>MA50</span>
-    </div>
-    <div class="chart-wrap" style="height:210px"><canvas id="priceChart"></canvas></div>
-    <div class="section-label">MACD (12,26,9)</div>
-    <div class="legend">
-      <span><span class="lline" style="background:#185FA5"></span>MACD</span>
-      <span><span class="lline" style="border-top:2px dashed #E24B4A;background:none"></span>Signal</span>
-      <span><span class="lline" style="background:#888;height:8px;border-radius:2px"></span>Histogram</span>
-    </div>
-    <div class="chart-wrap" style="height:140px"><canvas id="macdChart"></canvas></div>
-    <div class="section-label">RSI (14)</div>
-    <div class="rsi-labels"><span>Oversolgt &lt;30</span><span id="rsiVal">—</span><span>Overkøbt &gt;70</span></div>
-    <div class="rsi-bar-bg"><div class="rsi-bar-fill" id="rsiFill" style="width:50%;background:#378ADD"></div></div>
-    <div class="chart-wrap" style="height:100px;margin-top:6px"><canvas id="rsiChart"></canvas></div>
-    <div class="section-label" style="margin-top:.5rem">Volumen</div>
-    <div class="chart-wrap" style="height:100px"><canvas id="volChart"></canvas></div>
-  </div>
-
-</div>
-
-<script>
-const DAX40 = [
-  {name:'Adidas',           ticker:'ADS.DE',  sector:'Forbrugsvarer'},
-  {name:'Airbus',           ticker:'AIR.DE',  sector:'Industri'},
-  {name:'Allianz',          ticker:'ALV.DE',  sector:'Finans'},
-  {name:'BASF',             ticker:'BAS.DE',  sector:'Kemi'},
-  {name:'Bayer',            ticker:'BAYN.DE', sector:'Pharma'},
-  {name:'Beiersdorf',       ticker:'BEI.DE',  sector:'Forbrugsvarer'},
-  {name:'BMW',              ticker:'BMW.DE',  sector:'Bil'},
-  {name:'Brenntag',         ticker:'BNR.DE',  sector:'Kemi'},
-  {name:'Commerzbank',      ticker:'CBK.DE',  sector:'Finans'},
-  {name:'Continental',      ticker:'CON.DE',  sector:'Bil'},
-  {name:'Covestro',         ticker:'1COV.DE', sector:'Kemi'},
-  {name:'Daimler Truck',    ticker:'DTG.DE',  sector:'Industri'},
-  {name:'Deutsche Bank',    ticker:'DBK.DE',  sector:'Finans'},
-  {name:'Deutsche Börse',   ticker:'DB1.DE',  sector:'Finans'},
-  {name:'Deutsche Post',    ticker:'DHL.DE',  sector:'Logistik'},
-  {name:'Deutsche Telekom', ticker:'DTE.DE',  sector:'Telecom'},
-  {name:'E.ON',             ticker:'EOAN.DE', sector:'Energi'},
-  {name:'Fresenius',        ticker:'FRE.DE',  sector:'Pharma'},
-  {name:'FMC',              ticker:'FMC.DE',  sector:'Pharma'},
-  {name:'Hannover Rück',    ticker:'HNR1.DE', sector:'Finans'},
-  {name:'Heidelberg Mat.',  ticker:'HEIG.DE', sector:'Byggematerialer'},
-  {name:'Henkel Vz.',       ticker:'HENKY',   sector:'Forbrugsvarer'},
-  {name:'Infineon',         ticker:'IFX.DE',  sector:'Teknologi'},
-  {name:'Mercedes-Benz',    ticker:'MBG.DE',  sector:'Bil'},
-  {name:'Merck KGaA',       ticker:'MRK.DE',  sector:'Pharma'},
-  {name:'MTU Aero Engines', ticker:'MTX.DE',  sector:'Industri'},
-  {name:'Münchener Rück',   ticker:'MUV2.DE', sector:'Finans'},
-  {name:'Porsche AG',       ticker:'P911.DE', sector:'Bil'},
-  {name:'Porsche SE',       ticker:'PAH3.DE', sector:'Holding'},
-  {name:'Qiagen',           ticker:'QIA.DE',  sector:'Biotek'},
-  {name:'Rheinmetall',      ticker:'RHM.DE',  sector:'Forsvar'},
-  {name:'RWE',              ticker:'RWE.DE',  sector:'Energi'},
-  {name:'SAP',              ticker:'SAP.DE',  sector:'Teknologi'},
-  {name:'Sartorius Vz.',    ticker:'SRT3.DE', sector:'Biotek'},
-  {name:'Siemens',          ticker:'SIE.DE',  sector:'Industri'},
-  {name:'Siemens Energy',   ticker:'ENR.DE',  sector:'Energi'},
-  {name:'Siemens Healthin.', ticker:'SHL.DE', sector:'Medtech'},
-  {name:'Symrise',          ticker:'SY1.DE',  sector:'Kemi'},
-  {name:'Volkswagen Vz.',   ticker:'VOW3.DE', sector:'Bil'},
-  {name:'Zalando',          ticker:'ZAL.DE',  sector:'E-handel'},
-];
-
-const AUTO_REFRESH_MIN = 10;
-let stockData={}, currentFilter='all', currentTicker=null, currentPeriod='3mo';
-let pChart=null, mChart=null, rChart=null, vChart=null;
-let nextRefresh=null, countdownInterval=null;
-
-async function fetchStock(ticker, period='3mo') {
-  const interval = (period==='3mo'||period==='6mo') ? '1d' : '1wk';
-  try {
-    const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${period}&interval=${interval}&includePrePost=false`);
-    const j = await r.json();
-    const res = j.chart.result[0]; if (!res) return null;
-    return { timestamps: res.timestamp, closes: res.indicators.quote[0].close, volumes: res.indicators.quote[0].volume, meta: res.meta, ticker };
-  } catch { return null; }
-}
-
-function ema(data, p) {
-  const k = 2/(p+1); let e = null;
-  return data.map(v => { if(v==null) return null; if(e===null){e=v;return e;} e=v*k+e*(1-k); return e; });
-}
-function calcMACD(closes) {
-  const e12=ema(closes,12), e26=ema(closes,26);
-  const ml=closes.map((_,i)=>e12[i]!=null&&e26[i]!=null?e12[i]-e26[i]:null);
-  const sl=ema(ml.map(v=>v??0),9).map((v,i)=>ml[i]!=null?v:null);
-  const hist=ml.map((v,i)=>v!=null&&sl[i]!=null?v-sl[i]:null);
-  return {ml,sl,hist};
-}
-function calcMA(closes, p) {
-  return closes.map((_,i) => {
-    if(i<p-1) return null;
-    const sl=closes.slice(i-p+1,i+1).filter(v=>v!=null);
-    return sl.length<p?null:sl.reduce((a,b)=>a+b,0)/p;
-  });
-}
-function calcRSI(closes, p=14) {
-  if(closes.length<p+1) return {value:null,series:[]};
-  const series=new Array(p).fill(null); let g=0,l=0;
-  for(let i=1;i<=p;i++){const d=closes[i]-closes[i-1];if(d>0)g+=d;else l-=d;}
-  let ag=g/p,al=l/p;
-  series.push(al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(1)));
-  for(let i=p+1;i<closes.length;i++){
-    const d=closes[i]-closes[i-1];
-    ag=(ag*(p-1)+Math.max(d,0))/p; al=(al*(p-1)+Math.max(-d,0))/p;
-    series.push(al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(1)));
-  }
-  return {value:series.filter(v=>v!=null).at(-1), series};
-}
-
-function analyse(data) {
-  const closes = data.closes.filter(Boolean);
-  const allC = data.closes.map(v=>v??null);
-  const volumes = data.volumes||[];
-  const vols = volumes.filter(Boolean);
-  const {ml,sl,hist} = calcMACD(allC);
-  const ma20=calcMA(allC,20), ma50=calcMA(allC,50);
-  const {value:rsi, series:rsiSeries} = calcRSI(closes);
-  const lastMACD=[...ml].reverse().find(v=>v!=null);
-  const prevMACD=ml.filter(v=>v!=null).slice(-2)[0];
-  const lastSig=[...sl].reverse().find(v=>v!=null);
-  const prevSig=sl.filter(v=>v!=null).slice(-2)[0];
-  const lastHist=[...hist].reverse().find(v=>v!=null);
-  const prevHist=hist.filter(v=>v!=null).slice(-2)[0];
-  const last20=[...ma20].reverse().find(v=>v!=null);
-  const prev20=ma20.filter(v=>v!=null).slice(-2)[0];
-  const last50=[...ma50].reverse().find(v=>v!=null);
-  const prev50=ma50.filter(v=>v!=null).slice(-2)[0];
-  const avgVol=vols.slice(-20).reduce((a,b)=>a+b,0)/Math.min(20,vols.length)||1;
-  const lastVol=vols.at(-1)||0;
-  const volRatio=lastVol/avgVol;
-  const macdCross=prevMACD!=null&&lastMACD!=null&&prevMACD<prevSig&&lastMACD>lastSig;
-  const macdBull=lastMACD!=null&&lastSig!=null&&lastMACD>lastSig;
-  const macdHistRising=prevHist!=null&&lastHist!=null&&lastHist>prevHist;
-  const maCross=prev20!=null&&prev50!=null&&prev20<=prev50&&last20>last50;
-  const maBull=last20!=null&&last50!=null&&last20>last50;
-  const rsiOversold=rsi!=null&&rsi<30;
-  const rsiNeutralLow=rsi!=null&&rsi>=30&&rsi<=50;
-  const rsiOverbought=rsi!=null&&rsi>70;
-  const highVol=volRatio>1.5;
-  const last=closes.at(-1), prev=closes.at(-2);
-  const dayChg=prev?((last-prev)/prev*100):0;
-
-  const buyChecks=[
-    {ok:rsiOversold, warn:rsiNeutralLow, label:`RSI ${rsi!=null?rsi.toFixed(1):'—'}`, desc:rsiOversold?'Oversolgt — købszone':rsiNeutralLow?'RSI neutral-lav':'RSI ikke i købszone'},
-    {ok:macdCross, warn:macdBull&&!macdCross, label:'MACD kryds', desc:macdCross?'MACD krydser signal opad':macdBull?'MACD over signal, intet kryds':'MACD under signal'},
-    {ok:macdHistRising&&lastHist>0, warn:macdHistRising&&lastHist<=0, label:`Hist ${lastHist!=null?lastHist.toFixed(3):'—'}`, desc:macdHistRising&&lastHist>0?'Histogram vokser positivt':macdHistRising?'Histogram vokser men neg.':'Histogram faldende'},
-    {ok:maCross, warn:maBull&&!maCross, label:'Golden Cross', desc:maCross?'MA20 krydser MA50 opad':maBull?'MA20 over MA50':'MA20 under MA50'},
-    {ok:highVol, warn:volRatio>1.0&&!highVol, label:`Vol ${volRatio.toFixed(1)}x`, desc:highVol?`Volumen ${volRatio.toFixed(1)}x over snit`:volRatio>1?'Volumen lidt over norm':'Volumen under gennemsnit'},
-  ];
-  const sellChecks=[
-    {ok:rsiOverbought, warn:rsi!=null&&rsi>60&&!rsiOverbought, label:`RSI ${rsi!=null?rsi.toFixed(1):'—'}`, desc:rsiOverbought?'Overkøbt — salgszone':rsi>60?'RSI høj':'RSI ikke i salgszone'},
-    {ok:prevMACD>prevSig&&lastMACD<lastSig, warn:!macdBull, label:'MACD kryds ned', desc:prevMACD>prevSig&&lastMACD<lastSig?'MACD krydser signal nedad':!macdBull?'MACD under signal':'MACD over signal'},
-    {ok:prevHist>lastHist&&lastHist<0, warn:prevHist>lastHist&&lastHist>=0, label:`Hist ${lastHist!=null?lastHist.toFixed(3):'—'}`, desc:prevHist>lastHist&&lastHist<0?'Histogram falder negativt':prevHist>lastHist?'Histogram faldende':'Histogram stiger'},
-    {ok:prev20>=prev50&&last20<last50, warn:!maBull, label:'Death Cross', desc:prev20>=prev50&&last20<last50?'MA20 krydser MA50 nedad':!maBull?'MA20 under MA50':'MA20 over MA50'},
-    {ok:highVol&&dayChg<0, warn:highVol&&dayChg>=0, label:`Vol ${volRatio.toFixed(1)}x`, desc:highVol&&dayChg<0?`Høj vol på nedfald ${volRatio.toFixed(1)}x`:highVol?'Høj vol men kurs op':'Volumen normal'},
-  ];
-  const buyScore=buyChecks.filter(c=>c.ok).length;
-  const sellScore=sellChecks.filter(c=>c.ok).length;
-  return {buyScore,sellScore,buyChecks,sellChecks,rsi,lastMACD,lastSig,lastHist,volRatio,avgVol,lastVol:vols.at(-1),dayChg,last:closes.at(-1),ma20,ma50,ml,sl,hist,rsiSeries,allC,closes};
-}
-
-function fmtVol(v){if(!v||isNaN(v))return'—';if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return String(v);}
-function scoreClass(s){return['','score-1','score-2','score-3','score-4','score-5'][Math.min(s,5)];}
-function icon(c){return c.ok?'✓':c.warn?'~':'✗';}
-
-function renderCards() {
-  const q = document.getElementById('searchInput').value.toLowerCase();
-  const sortBy = document.getElementById('sortBy').value;
-  const entries = DAX40
-    .filter(s => !q || s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q) || s.sector.toLowerCase().includes(q))
-    .map(s => ({...s, d:stockData[s.ticker], a:stockData[s.ticker]?analyse(stockData[s.ticker]):null}));
-
-  const filtered = entries.filter(e => {
-    if(!e.a) return true;
-    if(currentFilter==='buy') return e.a.buyScore>=2;
-    if(currentFilter==='sell') return e.a.sellScore>=2;
-    return true;
-  }).sort((a,b) => {
-    if(!a.a&&!b.a) return 0; if(!a.a) return 1; if(!b.a) return -1;
-    const sc=e=>currentFilter==='sell'?e.a.sellScore:e.a.buyScore;
-    if(sortBy==='score') return sc(b)-sc(a);
-    if(sortBy==='rsi') return currentFilter==='sell'?(b.a.rsi||0)-(a.a.rsi||0):(a.a.rsi||99)-(b.a.rsi||99);
-    if(sortBy==='macd') return (b.a.lastHist||0)-(a.a.lastHist||0);
-    if(sortBy==='vol') return (b.a.volRatio||0)-(a.a.volRatio||0);
-    if(sortBy==='day') return (b.a.dayChg||0)-(a.a.dayChg||0);
-    return 0;
-  });
-
-  const loaded = DAX40.filter(s=>stockData[s.ticker]).length;
-  document.getElementById('loadedCount').textContent = loaded < DAX40.length ? `${loaded}/${DAX40.length} indlæst` : '';
-  document.getElementById('progressFill').style.width = (loaded/DAX40.length*100)+'%';
-
-  const list = document.getElementById('cardList');
-  if(filtered.length===0){list.innerHTML='<div class="empty">Ingen aktier matcher kriterierne.</div>';return;}
-
-  list.innerHTML = filtered.map(e => {
-    if(!e.a) return `<div class="card">
-      <div class="card-top">
-        <div><div class="card-name">${e.name}</div><div class="card-ticker">${e.ticker} · <span class="sector-badge">${e.sector}</span></div></div>
-      </div>
-      <div style="font-size:12px;color:var(--text2)">Henter data...</div>
-    </div>`;
-    const {a} = e;
-    const checks = currentFilter==='sell' ? a.sellChecks : a.buyChecks;
-    const score = currentFilter==='sell' ? a.sellScore : a.buyScore;
-    const checksHtml = checks.map(c=>`<span class="chk chk-${c.ok?'ok':c.warn?'warn':'bad'}">${icon(c)} ${c.label}</span>`).join('');
-    const descHtml = checks.filter(c=>c.ok).map(c=>`<span class="desc-ok">✓ ${c.desc}</span>`).join('');
-    return `<div class="card" onclick="showDetail('${e.ticker}')">
-      <div class="card-top">
-        <div>
-          <div class="card-name">${e.name}</div>
-          <div class="card-ticker">${e.ticker} · <span class="sector-badge">${e.sector}</span></div>
+    <div class="main-content">
+        <div class="chart-container">
+            <div id="tv-chart" style="height: 100%;"></div>
         </div>
-        <div class="score-ring"><span class="score-num ${scoreClass(score)}">${score}/5</span><span class="score-lbl">signal</span></div>
-      </div>
-      <div class="checks">${checksHtml}</div>
-      <div class="desc-list">${descHtml}</div>
-      <div class="card-nums">
-        <div class="cnum"><div class="cnum-lbl">RSI</div><div class="cnum-val ${a.rsi<30?'pos':a.rsi>70?'neg':''}">${a.rsi!=null?a.rsi.toFixed(1):'—'}</div></div>
-        <div class="cnum"><div class="cnum-lbl">MACD hist</div><div class="cnum-val ${a.lastHist>0?'pos':a.lastHist<0?'neg':''}">${a.lastHist!=null?a.lastHist.toFixed(3):'—'}</div></div>
-        <div class="cnum"><div class="cnum-lbl">Vol ratio</div><div class="cnum-val ${a.volRatio>1.5?'pos':''}">${a.volRatio.toFixed(2)}x</div></div>
-        <div class="cnum"><div class="cnum-lbl">Dag %</div><div class="cnum-val ${a.dayChg>=0?'pos':'neg'}">${a.dayChg>=0?'+':''}${a.dayChg.toFixed(1)}%</div></div>
-      </div>
-    </div>`;
-  }).join('');
-}
+        <div id="tech-analysis" style="height: 200px; background: #1e222d; border-radius: 8px; border: 1px solid #363c4e;"></div>
+    </div>
+</div>
 
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('.fbtn').forEach(b=>b.className='fbtn');
-  btn.className = `fbtn active-${f==='all'?'all':f==='buy'?'buy':'sell'}`;
-  renderCards();
-}
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script type="text/javascript">
+    const apiKey = 'd82nn1hr01qmgc0gr7dgd82nn1hr01qmgc0gr7e0';
+    const daxSymbols = [
+        "ADS.DE", "ALV.DE", "BAS.DE", "BAYN.DE", "BEI.DE", "BMW.DE", "CON.DE", "1COV.DE",
+        "DTG.DE", "DB1.DE", "DBK.DE", "DHL.DE", "DTE.DE", "EOAN.DE", "FRE.DE", "HEI.DE",
+        "HEN3.DE", "IFX.DE", "MBG.DE", "MRK.DE", "MTX.DE", "MUV2.DE", "PAH3.DE", "PUM.DE",
+        "RWE.DE", "SAP.DE", "SRT3.DE", "SIE.DE", "SY1.DE", "VOW3.DE", "VNA.DE", "RHM.DE"
+    ];
 
-function destroyCharts(){[pChart,mChart,rChart,vChart].forEach(c=>{if(c)c.destroy();});pChart=mChart=rChart=vChart=null;}
+    // Initialiser TradingView Graf
+    let chart = new TradingView.widget({
+        "autosize": true,
+        "symbol": "XETR:DAX",
+        "interval": "15",
+        "theme": "dark",
+        "style": "1",
+        "locale": "da_DK",
+        "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
+        "container_id": "tv-chart"
+    });
 
-async function showDetail(ticker) {
-  currentTicker = ticker;
-  document.getElementById('mainView').style.display='none';
-  document.getElementById('detailView').style.display='block';
-  const stock = DAX40.find(s=>s.ticker===ticker);
-  document.getElementById('dtTitle').textContent = stock.name;
-  document.getElementById('dtSub').textContent = `${ticker} · ${stock.sector} · Skift periode nedenfor`;
-  if(!stockData[ticker]){const d=await fetchStock(ticker,currentPeriod);if(d)stockData[ticker]=d;}
-  if(stockData[ticker]) renderDetail(stockData[ticker]);
-}
+    function updateTechAnalysis(symbol) {
+        const cleanSymbol = symbol.replace('.DE', '').replace('XETR:', '');
+        document.getElementById('tech-analysis').innerHTML = '';
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+        script.async = true;
+        script.innerHTML = JSON.stringify({
+            "interval": "15m",
+            "width": "100%",
+            "height": "100%",
+            "symbol": "XETR:" + cleanSymbol,
+            "showIntervalTabs": true,
+            "displayMode": "multiple",
+            "locale": "da_DK",
+            "colorTheme": "dark"
+        });
+        document.getElementById('tech-analysis').appendChild(script);
+    }
 
-function renderDetail(data) {
-  destroyCharts();
-  const a = analyse(data);
-  const labels = data.timestamps.map(ts=>{const d=new Date(ts*1000);return`${d.getDate()}/${d.getMonth()+1}`;});
-  const checks = currentFilter==='sell' ? a.sellChecks : a.buyChecks;
-  const score = currentFilter==='sell' ? a.sellScore : a.buyScore;
-  document.getElementById('dtChecks').innerHTML = checks.map(c=>`<span class="chk chk-${c.ok?'ok':c.warn?'warn':'bad'}" title="${c.desc}">${icon(c)} ${c.label}: ${c.desc}</span>`).join('');
-  const meta = data.meta;
-  document.getElementById('dtMetrics').innerHTML = `
-    <div class="metric"><div class="mlabel">Kurs (€)</div><div class="mval">${a.last!=null?a.last.toFixed(2):'—'}</div></div>
-    <div class="metric"><div class="mlabel">Signal</div><div class="mval ${score>=4?'pos':score>=2?'':'neg'}">${score}/5</div></div>
-    <div class="metric"><div class="mlabel">52U høj</div><div class="mval">${meta.fiftyTwoWeekHigh?meta.fiftyTwoWeekHigh.toFixed(2):'—'}</div></div>
-    <div class="metric"><div class="mlabel">52U lav</div><div class="mval">${meta.fiftyTwoWeekLow?meta.fiftyTwoWeekLow.toFixed(2):'—'}</div></div>
-    <div class="metric"><div class="mlabel">MACD hist</div><div class="mval ${a.lastHist>0?'pos':'neg'}">${a.lastHist!=null?a.lastHist.toFixed(3):'—'}</div></div>
-    <div class="metric"><div class="mlabel">Vol ratio</div><div class="mval ${a.volRatio>1.5?'pos':''}">${a.volRatio.toFixed(2)}x</div></div>
-  `;
-  const rsiVal=document.getElementById('rsiVal'), rsiFill=document.getElementById('rsiFill');
-  if(a.rsi!=null){rsiVal.textContent=a.rsi.toFixed(1);rsiFill.style.width=a.rsi+'%';rsiFill.style.background=a.rsi<30?'#1D9E75':a.rsi>70?'#D85A30':'#378ADD';}
+    async function updateAllData() {
+        const btn = document.querySelector('.refresh-btn');
+        const loader = document.getElementById('loadingStatus');
+        btn.disabled = true;
+        loader.style.display = 'block';
 
-  const co = {responsive:true,maintainAspectRatio:false,animation:false,
-    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
-    scales:{x:{ticks:{maxTicksLimit:7,color:'#888',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},
-            y:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}}}};
+        const tableBody = document.getElementById('daxTableBody');
+        const results = [];
 
-  pChart=new Chart(document.getElementById('priceChart').getContext('2d'),{type:'line',data:{labels,datasets:[
-    {label:'Kurs',data:a.allC,borderColor:'#185FA5',borderWidth:2,pointRadius:0,tension:0.2,fill:false,spanGaps:true},
-    {label:'MA20',data:a.ma20,borderColor:'#E24B4A',borderWidth:1.5,borderDash:[5,3],pointRadius:0,tension:0.2,fill:false,spanGaps:true},
-    {label:'MA50',data:a.ma50,borderColor:'#1D9E75',borderWidth:1.5,borderDash:[5,3],pointRadius:0,tension:0.2,fill:false,spanGaps:true},
-  ]},options:co});
+        for (const symbol of daxSymbols) {
+            try {
+                const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`);
+                const data = await response.json();
+                if (data.c) {
+                    results.push({
+                        symbol: symbol.replace('.DE', ''),
+                        price: data.c,
+                        change: data.dp,
+                        raw: data
+                    });
+                }
+            } catch (e) { console.error("Fejl ved hentning af " + symbol); }
+        }
 
-  const hc=a.hist.map(v=>v==null?'transparent':v>=0?'rgba(29,158,117,0.7)':'rgba(216,90,48,0.7)');
-  mChart=new Chart(document.getElementById('macdChart').getContext('2d'),{type:'bar',data:{labels,datasets:[
-    {type:'line',label:'MACD',data:a.ml,borderColor:'#185FA5',borderWidth:1.5,pointRadius:0,tension:0.2,fill:false,spanGaps:true},
-    {type:'line',label:'Signal',data:a.sl,borderColor:'#E24B4A',borderWidth:1.5,borderDash:[4,3],pointRadius:0,tension:0.2,fill:false,spanGaps:true},
-    {type:'bar',label:'Hist',data:a.hist,backgroundColor:hc},
-  ]},options:co});
+        // SORTERING: Her kan vi rykke dem med størst fald øverst (potentiale for RSI-vending)
+        results.sort((a, b) => a.change - b.change);
 
-  const rsiPad=new Array(a.allC.length-a.rsiSeries.length).fill(null).concat(a.rsiSeries);
-  rChart=new Chart(document.getElementById('rsiChart').getContext('2d'),{type:'line',data:{labels,datasets:[
-    {label:'RSI',data:rsiPad,borderColor:'#7F77DD',borderWidth:1.5,pointRadius:0,tension:0.2,fill:false,spanGaps:true},
-  ]},options:{...co,scales:{x:co.scales.x,y:{min:0,max:100,ticks:{color:'#888',font:{size:10},stepSize:30},grid:{color:'rgba(128,128,128,0.1)'}}}}});
+        tableBody.innerHTML = '';
+        results.forEach(stock => {
+            const row = tableBody.insertRow();
+            row.onclick = () => {
+                chart.options.symbol = "XETR:" + stock.symbol;
+                new TradingView.widget(chart.options);
+                updateTechAnalysis(stock.symbol);
+            };
+            
+            row.innerHTML = `
+                <td><strong>${stock.symbol}</strong></td>
+                <td>${stock.price.toFixed(2)} €</td>
+                <td class="${stock.change >= 0 ? 'up' : 'down'}">${stock.change.toFixed(2)}%</td>
+                <td style="font-size:0.7em; color:#b2b5be;">Klik for RSI/MACD</td>
+            `;
+        });
 
-  const avgVol=data.volumes.filter(Boolean).slice(-20).reduce((a,b)=>a+b,0)/Math.min(20,data.volumes.filter(Boolean).length)||1;
-  const vc=data.volumes.map(v=>v>avgVol*1.5?'rgba(29,158,117,0.7)':'rgba(136,135,128,0.45)');
-  vChart=new Chart(document.getElementById('volChart').getContext('2d'),{type:'bar',data:{labels,datasets:[
-    {label:'Vol',data:data.volumes,backgroundColor:vc},
-  ]},options:{...co,scales:{x:co.scales.x,y:{ticks:{color:'#888',font:{size:10},callback:v=>fmtVol(v)},grid:{color:'rgba(128,128,128,0.1)'}}}}});
-}
+        btn.disabled = false;
+        loader.style.display = 'none';
+    }
 
-async function setPeriod(p) {
-  currentPeriod=p;
-  document.querySelectorAll('.pbtn').forEach(b=>b.classList.toggle('active',b.textContent.trim()===({'3mo':'3M','6mo':'6M','1y':'1Å','2y':'2Å'}[p])));
-  if(currentTicker){delete stockData[currentTicker];const d=await fetchStock(currentTicker,p);if(d){stockData[currentTicker]=d;renderDetail(d);}}
-}
-
-function showMain(){destroyCharts();document.getElementById('detailView').style.display='none';document.getElementById('mainView').style.display='block';renderCards();}
-
-function setNextRefresh(){
-  nextRefresh=Date.now()+AUTO_REFRESH_MIN*60*1000;
-  if(countdownInterval)clearInterval(countdownInterval);
-  countdownInterval=setInterval(()=>{
-    const sec=Math.max(0,Math.round((nextRefresh-Date.now())/1000));
-    const m=Math.floor(sec/60),s=sec%60;
-    document.getElementById('countdown').textContent=`↺ ${m}:${String(s).padStart(2,'0')}`;
-    if(sec===0){clearInterval(countdownInterval);reloadAll();}
-  },1000);
-}
-
-async function reloadAll(){
-  stockData={};renderCards();
-  document.getElementById('progressFill').style.width='0%';
-  await loadAll();
-  setNextRefresh();
-}
-
-async function loadAll(){
-  for(let i=0;i<DAX40.length;i+=5){
-    await Promise.all(DAX40.slice(i,i+5).map(async s=>{
-      const d=await fetchStock(s.ticker,'3mo');
-      if(d) stockData[s.ticker]=d;
-      renderCards();
-    }));
-  }
-}
-
-(async()=>{ await loadAll(); setNextRefresh(); })();
+    updateAllData();
+    updateTechAnalysis("DAX");
 </script>
+
 </body>
 </html>
