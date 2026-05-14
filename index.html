@@ -7,70 +7,44 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #131722; color: #d1d4dc; margin: 0; padding: 10px; overflow: hidden; }
         .layout { display: grid; grid-template-columns: 450px 1fr; gap: 10px; height: 98vh; }
-        .sidebar { background: #1e222d; border-radius: 8px; border: 1px solid #363c4e; display: flex; flex-direction: column; padding: 10px; }
+        .sidebar { background: #1e222d; border-radius: 8px; border: 1px solid #363c4e; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
         .main-content { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
         .chart-container { flex-grow: 1; background: #1e222d; border-radius: 8px; border: 1px solid #363c4e; overflow: hidden; }
         
-        .refresh-btn {
-            background-color: #2962ff;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-bottom: 10px;
-            width: 100%;
-        }
         h3 { color: #2962ff; margin: 5px 0; font-size: 1.1em; text-align: center; }
         .strategy-note { font-size: 0.75em; color: #b2b5be; text-align: center; margin-bottom: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; color: #d1d4dc; font-size: 0.85em; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #363c4e; cursor: pointer; }
+        th { color: #b2b5be; }
+        tr:hover { background-color: #2a2e39; }
+        .buy-signal { color: #00ff88; font-weight: bold; }
+        .sell-signal { color: #ff3333; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="layout">
-    <!-- VENSTRE SIDE: AUTOMATISK STRATEGI-SCREENER -->
+    <!-- VENSTRE SIDE: TILPASSET, SORTERBAR AKTIETABEL -->
     <div class="sidebar">
         <h3>DAX 40 Strategi-Scanner</h3>
-        <div class="strategy-note">Sorteret efter RSI & MACD bekræftelse</div>
-        <button class="refresh-btn" onclick="location.reload()">🔄 OPDATER SCANNER</button>
+        <div class="strategy-note">Sorteret efter din strategi. Klik på kolonneoverskrifter for at sortere.</div>
         
-        <div style="flex-grow: 1;">
-            <!-- TradingView Stock Screener Widget -->
-            <div class="tradingview-widget-container">
-                <div class="tradingview-widget-container__widget"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-                {
-                  "width": "100%",
-                  "height": "100%",
-                  "defaultColumn": "technical_rating",
-                  "defaultScreen": "most_capitalized",
-                  "market": "germany",
-                  "showToolbar": false,
-                  "colorTheme": "dark",
-                  "locale": "da_DK",
-                  "symbols": {
-                    "tickers": [
-                      "XETR:ADS", "XETR:ALV", "XETR:BAS", "XETR:BAYN", "XETR:BEI", "XETR:BMW", "XETR:CON", 
-                      "XETR:1COV", "XETR:DTG", "XETR:DB1", "XETR:DBK", "XETR:DHL", "XETR:DTE", "XETR:EON", 
-                      "XETR:FRE", "XETR:HLD", "XETR:HEI", "XETR:HEN3", "XETR:IFX", "XETR:MBG", "XETR:MRK", 
-                      "XETR:MTX", "XETR:MUV2", "XETR:PAH3", "XETR:PUM", "XETR:RWE", "XETR:SAP", "XETR:SRT3", 
-                      "XETR:SIE", "XETR:SY1", "XETR:VOW3", "XETR:VNA", "XETR:ZAL", "XETR:RHM", "XETR:DB1"
-                    ]
-                  },
-                  "columns": [
-                    "base_currency_logoid",
-                    "name",
-                    "close",
-                    "change",
-                    "Relative_Strength_Index_14",
-                    "MACD.macd",
-                    "volume"
-                  ]
-                }
-                </script>
-            </div>
-        </div>
+        <table id="daxTable">
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0)">Aktie</th>
+                    <th onclick="sortTable(1)">Kurs</th>
+                    <th onclick="sortTable(2)">Ændring</th>
+                    <th onclick="sortTable(3)">RSI</th>
+                    <th onclick="sortTable(4)">MACD</th>
+                    <th onclick="sortTable(5)">Volumen</th>
+                </tr>
+            </thead>
+            <tbody id="daxTableBody">
+                <!-- Aktiedata vil blive indsat her dynamisk -->
+            </tbody>
+        </table>
     </div>
 
     <!-- HØJRE SIDE: DETALJERET GRAF -->
@@ -79,40 +53,163 @@
             <div id="tv-chart" style="height: 100%;"></div>
         </div>
         
-        <div style="height: 200px; background: #1e222d; border-radius: 8px; border: 1px solid #363c4e;">
-            <div class="tradingview-widget-container">
-                <div class="tradingview-widget-container__widget"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
-                {
-                  "interval": "15m",
-                  "width": "100%",
-                  "isTransparent": true,
-                  "height": "100%",
-                  "symbol": "XETR:DAX",
-                  "showIntervalTabs": true,
-                  "displayMode": "multiple",
-                  "locale": "da_DK",
-                  "colorTheme": "dark"
-                }
-                </script>
-            </div>
+        <!-- Teknisk Analyse Panel i bunden - Kan også opdateres for valgt aktie -->
+        <div id="technical-analysis-container" style="height: 200px; background: #1e222d; border-radius: 8px; border: 1px solid #363c4e;">
+            <!-- TradingView Technical Analysis Widget -->
         </div>
     </div>
 </div>
 
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <script type="text/javascript">
-    new TradingView.widget({
-        "autosize": true,
-        "symbol": "XETR:DAX",
-        "interval": "15",
-        "timezone": "Europe/Berlin",
-        "theme": "dark",
-        "style": "1",
-        "locale": "da_DK",
-        "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
-        "container_id": "tv-chart"
-    });
+    // --- TradingView Diagram Opsætning ---
+    let chartWidget = null;
+    function createChart(symbol, interval) {
+        if (chartWidget) {
+            chartWidget.remove(); // Fjern eksisterende diagram
+        }
+        chartWidget = new TradingView.widget({
+            "autosize": true,
+            "symbol": symbol,
+            "interval": interval,
+            "timezone": "Europe/Berlin",
+            "theme": "dark",
+            "style": "1",
+            "locale": "da_DK",
+            "studies": ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
+            "container_id": "tv-chart"
+        });
+    }
+    // Start med DAX-indekset på 15m
+    createChart("XETR:DAX", "15");
+
+    // --- Teknisk Analyse Widget Opsætning ---
+    function updateTechnicalAnalysis(symbol) {
+        let container = document.getElementById('technical-analysis-container');
+        container.innerHTML = ''; // Ryd eksisterende indhold
+        let widgetScript = document.createElement('script');
+        widgetScript.type = 'text/javascript';
+        widgetScript.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+        widgetScript.async = true;
+        widgetScript.innerHTML = JSON.stringify({
+            "interval": "15m",
+            "width": "100%",
+            "isTransparent": true,
+            "height": "100%",
+            "symbol": symbol,
+            "showIntervalTabs": true,
+            "displayMode": "multiple",
+            "locale": "da_DK",
+            "colorTheme": "dark"
+        });
+        container.appendChild(widgetScript);
+    }
+    // Start med DAX-indekset
+    updateTechnicalAnalysis("XETR:DAX");
+
+    // --- Dynamisk Tabel og Data Hentning ---
+    const daxTickerSymbols = [
+        "XETR:ADS", "XETR:ALV", "XETR:BAS", "XETR:BAYN", "XETR:BEI", "XETR:BMW", "XETR:CON", 
+        "XETR:1COV", "XETR:DTG", "XETR:DB1", "XETR:DBK", "XETR:DHL", "XETR:DTE", "XETR:EON", 
+        "XETR:FRE", "XETR:HLD", "XETR:HEI", "XETR:HEN3", "XETR:IFX", "XETR:MBG", "XETR:MRK", 
+        "XETR:MTX", "XETR:MUV2", "XETR:PAH3", "XETR:PUM", "XETR:RWE", "XETR:SAP", "XETR:SRT3", 
+        "XETR:SIE", "XETR:SY1", "XETR:VOW3", "XETR:VNA", "XETR:ZAL", "XETR:RHM", "XETR:DB1"
+    ];
+
+    async function fetchStockData(ticker) {
+        // I en rigtig app ville du hente live data fra et API her.
+        // For dette eksempel, genererer vi simuleret data, men vi sikrer,
+        // at vi kan sortere baseret på de strategiske regler.
+        
+        // Simuleret RSI, MACD, Volume for sorteringseksempel
+        let rsi = Math.random() * 100;
+        let macd = (Math.random() - 0.5) * 10;
+        let volume = Math.floor(Math.random() * 1000000);
+        let change = (Math.random() - 0.5) * 5;
+        let price = (Math.random() * 100 + 50);
+
+        return { ticker, price, change, rsi, macd, volume };
+    }
+
+    async function populateTable() {
+        let tableBody = document.getElementById('daxTableBody');
+        tableBody.innerHTML = ''; // Ryd eksisterende indhold
+
+        for (const ticker of daxTickerSymbols) {
+            let data = await fetchStockData(ticker);
+            let row = tableBody.insertRow();
+            row.onclick = () => {
+                // Skift diagram og teknisk analyse til den valgte aktie.
+                // Vi skifter automatisk intervallet til "D" (dags), som understøttes af de fleste.
+                createChart(data.ticker, "D"); 
+                updateTechnicalAnalysis(data.ticker);
+            };
+
+            row.innerHTML = `
+                <td>${data.ticker}</td>
+                <td>${data.price.toFixed(2)}</td>
+                <td class="${data.change >= 0 ? 'buy-signal' : 'sell-signal'}">${data.change.toFixed(2)}%</td>
+                <td class="${data.rsi <= 30 ? 'buy-signal' : (data.rsi >= 70 ? 'sell-signal' : '')}">${data.rsi.toFixed(2)}</td>
+                <td class="${data.macd >= 0 ? 'buy-signal' : 'sell-signal'}">${data.macd.toFixed(2)}</td>
+                <td>${data.volume.toLocaleString()}</td>
+            `;
+        }
+        // Efter populating, sorterer vi automatisk efter RSI (laveste først for potentielt køb)
+        sortTable(3, true); 
+    }
+
+    // --- Sorteringsfunktion til Tabellen ---
+    function sortTable(columnIndex, ascending = false) {
+        let table = document.getElementById("daxTable");
+        let rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        switching = true;
+        // Sæt standard sorteringsretning til faldende for de fleste, men stigende for RSI.
+        dir = (columnIndex === 3) ? "asc" : "desc"; 
+        if (ascending) dir = "asc"; // For auto-sortering ved start
+
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[columnIndex];
+                y = rows[i + 1].getElementsByTagName("TD")[columnIndex];
+
+                // For tal-kolonner (alle undtagen tickeravnet på 0)
+                if (columnIndex !== 0) {
+                    let xVal = parseFloat(x.innerHTML.replace(/[^\d.-]/g, ''));
+                    let yVal = parseFloat(y.innerHTML.replace(/[^\d.-]/g, ''));
+                    if (dir == "asc") {
+                        if (xVal > yVal) { shouldSwitch = true; break; }
+                    } else if (dir == "desc") {
+                        if (xVal < yVal) { shouldSwitch = true; break; }
+                    }
+                } else { // For ticker-kolonnen (tekst)
+                    if (dir == "asc") {
+                        if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) { shouldSwitch = true; break; }
+                    } else if (dir == "desc") {
+                        if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) { shouldSwitch = true; break; }
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                // Hvis ingen skift og retningen var sat til standard,
+                // skift retningen og kør loopet igen.
+                if (switchcount == 0 && dir == (columnIndex === 3 ? "asc" : "desc")) {
+                    dir = (dir === "asc") ? "desc" : "asc";
+                    switching = true;
+                }
+            }
+        }
+    }
+
+    // Indlæs data og populator tabellen ved start
+    populateTable();
+
 </script>
 
 </body>
